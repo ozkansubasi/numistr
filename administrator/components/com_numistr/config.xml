@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+  <fieldset name="basic" label="Temel Ayarlar">
+    <field name="images_path" type="text" default="../sikke"
+           label="Sikke Görsel Klasörü (Kök)"
+           description="Sikke görsellerinin BÖLGE KÖK klasörü. Örn: ../sikke" />
+
+    <field name="region_map_json" type="textarea" filter="raw"
+           label="Bölge Eşleştirme Tablosu (JSON)"
+           description="Kategori alias → klasör adı eşleştirmesi. Örn: {&quot;galatia-coins&quot;:&quot;galatia&quot;}"
+           rows="6" />
+
+    <field name="watermark_enable" type="radio" default="1"
+           label="Watermark Kullan (Varsayılan)"
+           description="Varsayılan olarak watermark uygulansın mı? ?wm=0/1 parametresi ile override edilebilir.">
+      <option value="0">Hayır</option>
+      <option value="1">Evet</option>
+    </field>
+
+    <field name="watermark_text" type="text" default="Numistr"
+           label="Watermark Yazısı"
+           description="Watermark metni (ör. Numistr)." />
+
+    <field name="watermark_position" type="list" default="bottom-right"
+           label="Watermark Pozisyonu"
+           description="Watermark konumu.">
+      <option value="top-left">Sol Üst</option>
+      <option value="top-right">Sağ Üst</option>
+      <option value="bottom-left">Sol Alt</option>
+      <option value="bottom-right">Sağ Alt</option>
+      <option value="center">Orta</option>
+    </field>
+      <field name="watermark_diagonal"
+    type="radio"
+    label="diagonal"
+    description="diagonal"
+    default="1">
+    <option value="1">JYES</option>
+    <option value="0">JNO</option>
+</field>
+
+    <field name="watermark_opacity" type="number" default="60"
+           label="Watermark Opaklık (%)"
+           description="0 (tam şeffaf) - 100 (tam opak)" />
+  </fieldset>
+
+
+</config>
