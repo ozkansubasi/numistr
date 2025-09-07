@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<access component="com_numistr">
+  <section name="component">
+    <action name="core.admin"  title="JCONFIG_PERMISSIONS_CONFIGURE" description="JCONFIG_PERMISSIONS_CONFIGURE_DESC"/>
+    <action name="core.manage" title="JCONFIG_PERMISSIONS_MANAGE"    description="JCONFIG_PERMISSIONS_MANAGE_DESC"/>
+    <action name="api.read"    title="API Read"   description="Public or Authenticated GET"/>
+    <action name="api.write"   title="API Write"  description="POST/PATCH/DELETE for authenticated users"/>
+  </section>
+</access>
