@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="component" version="5.0" method="upgrade">
+    <name>com_numistr</name>
+    <author>Numistr</author>
+    <creationDate>2025-09-04</creationDate>
+    <version>1.4.0</version>
+    <description>COM_NUMISTR_XML_DESCRIPTION</description>
+
+    <!-- Site files to /components/com_numistr -->
+    <files>
+        <filename>numistr.php</filename>
+        <filename>controller.php</filename>
+        <folder>views</folder>
+    </files>
+
+    <!-- Admin files to /administrator/components/com_numistr -->
+    <administration>
+        <menu>COM_NUMISTR</menu>
+        <config>config.xml</config>
+        <languages>
+            <language tag="en-GB">language/en-GB/en-GB.com_numistr.sys.ini</language>
+            <language tag="tr-TR">language/tr-TR/tr-TR.com_numistr.sys.ini</language>
+        </languages>
+        <files folder="admin">
+            <filename>numistr.php</filename>
+            <filename>controller.php</filename>
+            <folder>views</folder>
+            <filename>config.xml</filename>
+        </files>
+    </administration>
+</extension>
