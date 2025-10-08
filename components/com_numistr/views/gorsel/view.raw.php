@@ -174,6 +174,66 @@ function numistr_make_thumb(string $src, string $out, int $maxEdge = 480): strin
     return $out;
 }
 }
+function numistr_stream_remote_by_image_id(int $imageId): bool
+{
+    try {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $q  = $db->getQuery(true)
+            ->select($db->quoteName('remote_url'))
+            ->from($db->quoteName('coins_images'))
+            ->where($db->quoteName('image_id') . ' = ' . (int)$imageId)
+            ->setLimit(1);
+        $db->setQuery($q);
+        $remote = (string)$db->loadResult();
+    } catch (\Throwable $e) {
+        return false;
+    }
+
+    $remote = trim($remote ?? '');
+    if ($remote === '' || !preg_match('~^https?://~i', $remote)) return false;
+
+    // cURL tercih; yoksa stream fallback
+    $data = null; $type = 'image/jpeg'; $len = 0; $ok = false;
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($remote);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 5,
+            CURLOPT_TIMEOUT        => 20,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_USERAGENT      => 'NumisTR-ImageProxy/1.1',
+        ]);
+        $data = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $ct   = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        $len  = (int)curl_getinfo($ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD);
+        curl_close($ch);
+        if ($ct !== '' && stripos($ct, 'image/') === 0) $type = $ct;
+        $ok = ($code >= 200 && $code < 400 && $data !== false && $data !== '');
+    } else {
+        $ctx  = stream_context_create(['http'=>['method'=>'GET','timeout'=>15,'ignore_errors'=>true]]);
+        $data = @file_get_contents($remote, false, $ctx);
+        $ok   = ($data !== false && $data !== '');
+        $len  = strlen((string)$data);
+    }
+
+    if (!$ok) return false;
+
+    if (!headers_sent()) {
+        header('Content-Type: ' . $type);
+        if ($len > 0) header('Content-Length: ' . (string)$len);
+        header('Cache-Control: public, max-age=86400');
+        header('X-NumisTR-Remote: 1');
+    }
+    echo $data;
+    \Joomla\CMS\Factory::getApplication()->close();
+    return true;
+}
+
 if (!function_exists('numistr_make_watermarked')) {
 function numistr_make_watermarked(string $src, string $out, int $maxEdge = 1600, ?string $wmPng = null): string {
     numistr_ensure_dir(dirname($out));
@@ -447,6 +507,8 @@ if (!empty($row->filename)) {
     $local = rtrim($PRIVATE_ORIG_BASE,'/').'/'.$folder.'/'.$filenameOnly;
     if (@is_file($local)) $src = $local;
 }
+if ($src === null && numistr_stream_remote_by_image_id((int)$imageId)) return;
+
 
 // Local yoksa remote (whitelist + cURL)
 if (!$src && !empty($row->remote_url) && numistr_is_http($row->remote_url) && numistr_is_whitelisted_host($row->remote_url,$WHITELIST)) {
