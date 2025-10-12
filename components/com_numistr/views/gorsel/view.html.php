@@ -18,6 +18,106 @@ class NumistrViewGorsel extends BaseHtmlView
             exit('ID gerekli');
         }
 
+        // === DEBUG MODE ===
+        if ($app->input->getInt('debug', 0) === 1) {
+            $db = Factory::getDbo();
+            $params = ComponentHelper::getParams('com_numistr');
+            
+            // Görsel bilgisi
+            $q = $db->getQuery(true)
+                ->select($db->quoteName(['filename', 'coin_id', 'remote_url']))
+                ->from($db->quoteName('coins_images'))
+                ->where($db->quoteName('image_id') . ' = ' . (int)$id)
+                ->setLimit(1);
+            $db->setQuery($q);
+            $img = $db->loadObject();
+            
+            // Kategori bilgisi
+            $catAlias = '';
+            if ($img && $img->coin_id) {
+                $catIdQ = $db->getQuery(true)
+                    ->select($db->quoteName('catid'))
+                    ->from($db->quoteName('#__content'))
+                    ->where($db->quoteName('id') . ' = ' . (int)$img->coin_id)
+                    ->setLimit(1);
+                $db->setQuery($catIdQ);
+                $catid = (int)$db->loadResult();
+                
+                if ($catid) {
+                    $aliasQ = $db->getQuery(true)
+                        ->select($db->quoteName('alias'))
+                        ->from($db->quoteName('#__categories'))
+                        ->where($db->quoteName('id') . ' = ' . $catid)
+                        ->setLimit(1);
+                    $db->setQuery($aliasQ);
+                    $catAlias = (string)$db->loadResult();
+                }
+            }
+            
+            // Bölge haritası
+            $regionMapJson = (string)$params->get('region_map_json', '');
+            $regionMap = [];
+            if ($regionMapJson) {
+                try {
+                    $decoded = json_decode($regionMapJson, true, 512, JSON_THROW_ON_ERROR);
+                    if (is_array($decoded)) $regionMap = $decoded;
+                } catch (\Throwable $e) { }
+            }
+            
+            $imagesRoot = rtrim($params->get('images_path', '../sikke'), '/');
+            $key = strtolower(trim($catAlias));
+            $folder = '';
+            if ($key !== '' && isset($regionMap[$key]) && is_string($regionMap[$key]) && $regionMap[$key] !== '') {
+                $folder = trim($regionMap[$key], '/');
+            } else {
+                $folder = $key;
+            }
+            
+            $relative = ltrim($img->filename ?? '', '/');
+            if (strpos($relative, '/') === false && $folder !== '') {
+                $relative = $folder . '/' . $relative;
+            }
+            
+            $basePath = realpath(JPATH_ROOT . '/' . trim($imagesRoot, '/'));
+            $filePath = $basePath ? realpath($basePath . '/' . $relative) : false;
+            
+            header('Content-Type: text/plain; charset=utf-8');
+            echo "=== NUMISTR DEBUG (view.html.php) ===\n\n";
+            echo "Image ID: " . $id . "\n";
+            echo "Coin ID: " . ($img->coin_id ?? 'N/A') . "\n";
+            echo "Category Alias: " . ($catAlias ?: 'N/A') . "\n";
+            echo "Mapped Folder: " . ($folder ?: 'N/A') . "\n";
+            echo "Filename from DB: " . ($img->filename ?? 'N/A') . "\n";
+            echo "Remote URL: " . ($img->remote_url ?? 'N/A') . "\n";
+            echo "\n--- Region Map ---\n";
+            echo json_encode($regionMap, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+            echo "\n--- Path Info ---\n";
+            echo "Images Root Setting: " . $imagesRoot . "\n";
+            echo "Base Path (realpath): " . ($basePath ?: 'NOT FOUND') . "\n";
+            echo "Relative Path: " . $relative . "\n";
+            echo "Full File Path: " . ($filePath ?: 'NOT RESOLVED') . "\n";
+            echo "File Exists: " . ($filePath && file_exists($filePath) ? 'YES' : 'NO') . "\n";
+            
+            if (!$filePath || !file_exists($filePath)) {
+                echo "\n--- Troubleshooting ---\n";
+                $testDir = $basePath ? $basePath . '/' . $folder : 'N/A';
+                echo "Expected Directory: " . $testDir . "\n";
+                echo "Directory Exists: " . (is_dir($testDir) ? 'YES' : 'NO') . "\n";
+                
+                if (is_dir($testDir)) {
+                    echo "\nFiles in directory:\n";
+                    $files = @scandir($testDir);
+                    if ($files) {
+                        foreach ($files as $f) {
+                            if ($f !== '.' && $f !== '..') echo "  - " . $f . "\n";
+                        }
+                    }
+                }
+            }
+            exit;
+        }
+        // === END DEBUG ===
+
         // Çıktı tamponlarını kapat (üst katman sıkıştırmaları dâhil)
         @ini_set('zlib.output_compression', 0);
         while (ob_get_level() > 0) { @ob_end_clean(); }
@@ -311,7 +411,7 @@ class NumistrViewGorsel extends BaseHtmlView
             imagettftext($image, $fontSizeDiag, $angle, $x, $y, $col, $ttf, $text);
         }
         elseif ($ttfOk) {
-            // DÜZ (mevcut pozisyon mantığı) – panel + gölge
+            // DÜZ (mevcut pozisyon mantığı) — panel + gölge
             $bbox  = imagettfbbox($fontSize, 0, $ttf, $text);
             $textW = abs($bbox[2] - $bbox[0]);
             $textH = abs($bbox[7] - $bbox[1]);

@@ -174,6 +174,7 @@ function numistr_make_thumb(string $src, string $out, int $maxEdge = 480): strin
     return $out;
 }
 }
+if (!function_exists('numistr_stream_remote_by_image_id')) {
 function numistr_stream_remote_by_image_id(int $imageId): bool
 {
     try {
@@ -233,6 +234,7 @@ function numistr_stream_remote_by_image_id(int $imageId): bool
     \Joomla\CMS\Factory::getApplication()->close();
     return true;
 }
+}
 
 if (!function_exists('numistr_make_watermarked')) {
 function numistr_make_watermarked(string $src, string $out, int $maxEdge = 1600, ?string $wmPng = null): string {
@@ -281,7 +283,7 @@ function numistr_make_watermarked(string $src, string $out, int $maxEdge = 1600,
             $wm->setImageAlphaChannel(\Imagick::ALPHACHANNEL_ACTIVATE);
             $wm->setImageBackgroundColor(new \ImagickPixel('transparent'));
 
-            // görsel genişliğinin ~%70’i hedef (küçültme)
+            // görsel genişliğinin ~%70'i hedef (küçültme)
             $targetW = (int)floor($W * $TOPRIGHT_SCALE);
             if ($targetW < 300) $targetW = 300;
             $wm->thumbnailImage($targetW, 0, true);
@@ -499,6 +501,7 @@ $cat = $db->loadObject();
 $catAlias = $cat ? (string)$cat->cat_alias : '';
 $folder   = $REGION_MAP[$catAlias] ?? $catAlias ?: 'unknown';
 
+
 // Kaynak: önce local
 $src = null;
 $filenameOnly = '';
@@ -507,8 +510,11 @@ if (!empty($row->filename)) {
     $local = rtrim($PRIVATE_ORIG_BASE,'/').'/'.$folder.'/'.$filenameOnly;
     if (@is_file($local)) $src = $local;
 }
-if ($src === null && numistr_stream_remote_by_image_id((int)$imageId)) return;
 
+// Local yoksa remote stream denemesi - DÜZELTİLDİ: $imageId yerine $id
+if ($src === null && numistr_stream_remote_by_image_id($id)) {
+    exit; // Stream başarılı, çık
+}
 
 // Local yoksa remote (whitelist + cURL)
 if (!$src && !empty($row->remote_url) && numistr_is_http($row->remote_url) && numistr_is_whitelisted_host($row->remote_url,$WHITELIST)) {
@@ -609,4 +615,3 @@ if ($wm === 0) {
     readfile($wmPath);
     exit;
 }
-
