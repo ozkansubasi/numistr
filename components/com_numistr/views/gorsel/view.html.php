@@ -5,6 +5,9 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Component\ComponentHelper;
 
+// Remote streaming fonksiyonlarını yükle (view.raw.php'den)
+require_once __DIR__ . '/view.raw.php';
+
 class NumistrViewGorsel extends BaseHtmlView
 {
     public function display($tpl = null)
@@ -213,6 +216,11 @@ class NumistrViewGorsel extends BaseHtmlView
         $filePath = $basePath ? realpath($basePath . '/' . $relative) : false;
 
         if (!$basePath || !$filePath || strpos($filePath, $basePath) !== 0 || !is_file($filePath)) {
+            // Lokal dosya yok → Remote URL'e fallback dene
+            if (function_exists('numistr_stream_remote_by_image_id') && numistr_stream_remote_by_image_id($id)) {
+                exit; // Remote streaming başarılı
+            }
+            // Hem lokal hem remote bulunamadı
             header('HTTP/1.1 404 Not Found');
             exit('Dosya bulunamadı');
         }

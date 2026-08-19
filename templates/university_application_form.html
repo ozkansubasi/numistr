@@ -1,0 +1,492 @@
+<!--
+  NumisTR University Pro Subscription Application Form
+
+  Usage:
+  1. Create a new Joomla article or use this in YooTheme Page Builder
+  2. Copy this HTML into the article content (HTML view)
+  3. Make sure to enable JavaScript if using forms
+
+  Alternative: Create as a Joomla module using mod_custom
+-->
+
+<style>
+.numistr-form-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 30px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.numistr-form-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.numistr-form-header h2 {
+    color: #8B6914;
+    margin-bottom: 10px;
+    font-size: 28px;
+}
+
+.numistr-form-header p {
+    color: #666;
+    font-size: 16px;
+}
+
+.numistr-info-box {
+    background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.05));
+    border-left: 4px solid #2196F3;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.numistr-info-box h4 {
+    color: #2196F3;
+    margin: 0 0 10px 0;
+    font-size: 16px;
+}
+
+.numistr-info-box p {
+    color: #333;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.numistr-form-section {
+    margin-bottom: 30px;
+}
+
+.numistr-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.numistr-section-title .icon {
+    width: 32px;
+    height: 32px;
+    background: rgba(139, 105, 20, 0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8B6914;
+}
+
+.numistr-form-group {
+    margin-bottom: 20px;
+}
+
+.numistr-form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.numistr-form-group label .required {
+    color: #E53935;
+}
+
+.numistr-form-group input[type="text"],
+.numistr-form-group input[type="email"],
+.numistr-form-group input[type="file"],
+.numistr-form-group select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.numistr-form-group input:focus,
+.numistr-form-group select:focus {
+    border-color: #8B6914;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(139, 105, 20, 0.1);
+}
+
+.numistr-form-group .hint {
+    font-size: 13px;
+    color: #888;
+    margin-top: 6px;
+}
+
+.numistr-file-upload {
+    border: 2px dashed #ddd;
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.numistr-file-upload:hover {
+    border-color: #8B6914;
+    background: rgba(139, 105, 20, 0.02);
+}
+
+.numistr-file-upload.has-file {
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.05);
+}
+
+.numistr-file-upload .upload-icon {
+    font-size: 40px;
+    color: #8B6914;
+    margin-bottom: 10px;
+}
+
+.numistr-file-upload .upload-text {
+    color: #333;
+    font-weight: 500;
+}
+
+.numistr-file-upload .upload-hint {
+    color: #888;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.numistr-file-upload input[type="file"] {
+    display: none;
+}
+
+.numistr-interests {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.numistr-interest-chip {
+    padding: 10px 16px;
+    border: 1px solid #ddd;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    user-select: none;
+}
+
+.numistr-interest-chip:hover {
+    border-color: #8B6914;
+}
+
+.numistr-interest-chip.selected {
+    background: #8B6914;
+    color: white;
+    border-color: #8B6914;
+}
+
+.numistr-interest-chip input {
+    display: none;
+}
+
+.numistr-submit-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #8B6914, #6B5010);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.numistr-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 105, 20, 0.3);
+}
+
+.numistr-submit-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.numistr-privacy-note {
+    text-align: center;
+    font-size: 13px;
+    color: #888;
+    margin-top: 20px;
+    line-height: 1.5;
+}
+
+.numistr-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 600px) {
+    .numistr-form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.numistr-success-message {
+    display: none;
+    text-align: center;
+    padding: 40px;
+}
+
+.numistr-success-message.show {
+    display: block;
+}
+
+.numistr-success-message .success-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 40px;
+    color: #4CAF50;
+}
+
+.numistr-success-message h3 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.numistr-success-message p {
+    color: #666;
+}
+
+.numistr-error-message {
+    display: none;
+    background: rgba(229, 57, 53, 0.1);
+    border-left: 4px solid #E53935;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    color: #E53935;
+}
+
+.numistr-error-message.show {
+    display: block;
+}
+</style>
+
+<div class="numistr-form-container">
+    <div class="numistr-form-header">
+        <h2>🎓 Üniversite Pro Aboneliği</h2>
+        <p>Tarih ve Arkeoloji öğrencilerine ücretsiz Pro erişim</p>
+    </div>
+
+    <div class="numistr-info-box">
+        <h4>ℹ️ Ücretsiz Pro Abonelik</h4>
+        <p>Tarih, Arkeoloji, Sanat Tarihi ve ilgili bölümlerdeki üniversite öğrencileri ücretsiz Pro abonelik başvurusu yapabilir. Başvurunuz onaylandıktan sonra tüm Pro özelliklerine erişebilirsiniz.</p>
+    </div>
+
+    <div class="numistr-error-message" id="errorMessage"></div>
+
+    <div class="numistr-success-message" id="successMessage">
+        <div class="success-icon">✓</div>
+        <h3>Başvurunuz Gönderildi!</h3>
+        <p>Başvurunuz en kısa sürede incelenecektir. Onay durumu e-posta ile bildirilecektir.</p>
+    </div>
+
+    <form id="universityApplicationForm" enctype="multipart/form-data">
+        <!-- Kişisel Bilgiler -->
+        <div class="numistr-form-section">
+            <div class="numistr-section-title">
+                <div class="icon">👤</div>
+                Kişisel Bilgiler
+            </div>
+
+            <div class="numistr-form-row">
+                <div class="numistr-form-group">
+                    <label>Ad <span class="required">*</span></label>
+                    <input type="text" name="name" required placeholder="Adınız">
+                </div>
+                <div class="numistr-form-group">
+                    <label>Soyad <span class="required">*</span></label>
+                    <input type="text" name="surname" required placeholder="Soyadınız">
+                </div>
+            </div>
+
+            <div class="numistr-form-group">
+                <label>E-posta <span class="required">*</span></label>
+                <input type="email" name="email" required placeholder="ornek@universite.edu.tr">
+            </div>
+        </div>
+
+        <!-- Üniversite Bilgileri -->
+        <div class="numistr-form-section">
+            <div class="numistr-section-title">
+                <div class="icon">🏛️</div>
+                Üniversite Bilgileri
+            </div>
+
+            <div class="numistr-form-group">
+                <label>Üniversite Adı <span class="required">*</span></label>
+                <input type="text" name="university" required placeholder="ör: İstanbul Üniversitesi">
+            </div>
+
+            <div class="numistr-form-group">
+                <label>Bölüm <span class="required">*</span></label>
+                <input type="text" name="department" required placeholder="ör: Tarih, Arkeoloji, Sanat Tarihi">
+                <div class="hint">Tarih, Arkeoloji, Sanat Tarihi ve ilgili bölümler kabul edilmektedir.</div>
+            </div>
+        </div>
+
+        <!-- Öğrenci Kimliği -->
+        <div class="numistr-form-section">
+            <div class="numistr-section-title">
+                <div class="icon">🪪</div>
+                Öğrenci Kimliği
+            </div>
+
+            <div class="numistr-form-group">
+                <label class="numistr-file-upload" id="fileUploadLabel">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">Kimlik yüklemek için tıklayın</div>
+                    <div class="upload-hint">JPG, PNG formatları kabul edilir (maks. 5MB)</div>
+                    <input type="file" name="id_card" id="idCardInput" accept="image/*,.pdf" required>
+                </label>
+                <div class="hint">Güncel üniversite öğrenci kimliğinizin fotoğrafını yükleyin. Kimliğinizde adınız, üniversiteniz ve bölümünüz görünür olmalıdır.</div>
+            </div>
+        </div>
+
+        <!-- İlgi Alanları -->
+        <div class="numistr-form-section">
+            <div class="numistr-section-title">
+                <div class="icon">🎯</div>
+                İlgi Alanları
+                <span style="font-size: 12px; color: #888; font-weight: normal; background: #eee; padding: 2px 8px; border-radius: 10px;">Opsiyonel</span>
+            </div>
+
+            <div class="numistr-interests">
+                <label class="numistr-interest-chip">
+                    <input type="checkbox" name="interests[]" value="Antik Sikkeler">
+                    Antik Sikkeler
+                </label>
+                <label class="numistr-interest-chip">
+                    <input type="checkbox" name="interests[]" value="Arkeoloji">
+                    Arkeoloji
+                </label>
+                <label class="numistr-interest-chip">
+                    <input type="checkbox" name="interests[]" value="Tarih">
+                    Tarih
+                </label>
+                <label class="numistr-interest-chip">
+                    <input type="checkbox" name="interests[]" value="Nümizmatik">
+                    Nümizmatik
+                </label>
+                <label class="numistr-interest-chip">
+                    <input type="checkbox" name="interests[]" value="Sanat Tarihi">
+                    Sanat Tarihi
+                </label>
+                <label class="numistr-interest-chip">
+                    <input type="checkbox" name="interests[]" value="Klasik Çalışmalar">
+                    Klasik Çalışmalar
+                </label>
+                <label class="numistr-interest-chip">
+                    <input type="checkbox" name="interests[]" value="Müzecilik">
+                    Müzecilik
+                </label>
+                <label class="numistr-interest-chip">
+                    <input type="checkbox" name="interests[]" value="Koruma ve Restorasyon">
+                    Koruma ve Restorasyon
+                </label>
+            </div>
+        </div>
+
+        <button type="submit" class="numistr-submit-btn" id="submitBtn">
+            Başvuru Gönder
+        </button>
+
+        <p class="numistr-privacy-note">
+            Bilgileriniz yalnızca başvuru değerlendirmesi için kullanılacak ve üçüncü şahıslarla paylaşılmayacaktır.
+        </p>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('universityApplicationForm');
+    const fileInput = document.getElementById('idCardInput');
+    const fileLabel = document.getElementById('fileUploadLabel');
+    const submitBtn = document.getElementById('submitBtn');
+    const errorMessage = document.getElementById('errorMessage');
+    const successMessage = document.getElementById('successMessage');
+
+    // Interest chip selection
+    document.querySelectorAll('.numistr-interest-chip').forEach(chip => {
+        chip.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'INPUT') {
+                const checkbox = this.querySelector('input');
+                checkbox.checked = !checkbox.checked;
+            }
+            this.classList.toggle('selected', this.querySelector('input').checked);
+        });
+    });
+
+    // File upload visual feedback
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            const fileName = this.files[0].name;
+            fileLabel.querySelector('.upload-text').textContent = '✓ ' + fileName;
+            fileLabel.classList.add('has-file');
+        } else {
+            fileLabel.querySelector('.upload-text').textContent = 'Kimlik yüklemek için tıklayın';
+            fileLabel.classList.remove('has-file');
+        }
+    });
+
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        errorMessage.classList.remove('show');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Gönderiliyor...';
+
+        try {
+            const formData = new FormData(form);
+
+            // Collect interests
+            const interests = [];
+            document.querySelectorAll('.numistr-interest-chip input:checked').forEach(cb => {
+                interests.push(cb.value);
+            });
+            formData.set('interests', interests.join(', '));
+
+            const response = await fetch('/api/index.php/v1/university-application', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                form.style.display = 'none';
+                successMessage.classList.add('show');
+            } else {
+                throw new Error(result.message || 'Bir hata oluştu');
+            }
+
+        } catch (error) {
+            errorMessage.textContent = error.message;
+            errorMessage.classList.add('show');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Başvuru Gönder';
+        }
+    });
+});
+</script>

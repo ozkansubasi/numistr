@@ -47,7 +47,10 @@ function numistr_ensure_dir(string $dir): void { if (!is_dir($dir)) @mkdir($dir,
 if (!function_exists('numistr_basename')) {
 function numistr_basename(string $path): string {
     $b = basename(str_replace('\\','/',$path));
-    return preg_replace('~[^A-Za-z0-9._-]+~','_',$b);
+    // UTF-8 karakterlere izin ver (ø, ü, ö, ş, ç, ğ, ı vb.)
+    // Sadece tehlikeli karakterleri (path traversal, null byte) filtrele
+    // \p{L} = Unicode harfler, \p{N} = Unicode rakamlar
+    return preg_replace('~[^\p{L}\p{N}._()\+\- ]+~u','_',$b);
 }
 }
 if (!function_exists('numistr_is_http')) {
@@ -179,13 +182,23 @@ function numistr_stream_remote_by_image_id(int $imageId): bool
 {
     try {
         $db = \Joomla\CMS\Factory::getDbo();
+
+        // İlk önce coin_id ve remote_url'yi al
         $q  = $db->getQuery(true)
-            ->select($db->quoteName('remote_url'))
+            ->select([$db->quoteName('coin_id'), $db->quoteName('remote_url')])
             ->from($db->quoteName('coins_images'))
             ->where($db->quoteName('image_id') . ' = ' . (int)$imageId)
             ->setLimit(1);
         $db->setQuery($q);
-        $remote = (string)$db->loadResult();
+        $row = $db->loadObject();
+
+        if (!$row) return false;
+
+        // DİREKT coins_images.remote_url kullan (image_id bazlı)
+        $remote = trim((string)($row->remote_url ?? ''));
+
+        // NOT: sikke-gorsel-url custom field'i SADECE intro image içindir
+        // Her görselin kendi remote_url'i coins_images tablosunda vardır
     } catch (\Throwable $e) {
         return false;
     }
@@ -451,7 +464,18 @@ foreach (['region_map_json','region_map','bolge_map_json','region_mapping_json']
     if ($v !== null && $v !== '') { $regionJson = (string)$v; break; }
 }
 $REGION_MAP = [];
-if ($regionJson) { $tmp = json_decode($regionJson, true); if (is_array($tmp)) $REGION_MAP = $tmp; }
+if ($regionJson) {
+    $tmp = json_decode($regionJson, true);
+    if (is_array($tmp)) {
+        $REGION_MAP = $tmp;
+    }
+}
+
+// DEBUG: Region map yüklendi mi?
+if ($dbg && empty($REGION_MAP)) {
+    header('X-NumisTR-RegionMap: EMPTY or NOT LOADED');
+    header('X-NumisTR-RegionJson: ' . ($regionJson ? 'found' : 'null'));
+}
 
 // Whitelist (CSV/JSON)
 $whitelistRaw = (string)($params->get('remote_whitelist', '') ?? '');
@@ -508,12 +532,36 @@ $filenameOnly = '';
 if (!empty($row->filename)) {
     $filenameOnly = numistr_basename((string)$row->filename);
     $local = rtrim($PRIVATE_ORIG_BASE,'/').'/'.$folder.'/'.$filenameOnly;
+
+    // DEBUG: Dosya yolu detayları
+    if ($dbg) {
+        header('X-Debug-ID: ' . $id);
+        header('X-Debug-CatAlias: ' . $catAlias);
+        header('X-Debug-Folder: ' . $folder);
+        header('X-Debug-Filename-Raw: ' . urlencode($row->filename));
+        header('X-Debug-Filename-Clean: ' . urlencode($filenameOnly));
+        header('X-Debug-Local-Path: ' . urlencode($local));
+        header('X-Debug-PRIVATE_ORIG_BASE: ' . urlencode($PRIVATE_ORIG_BASE));
+        header('X-Debug-File-Exists: ' . (file_exists($local) ? 'YES' : 'NO'));
+        header('X-Debug-Is-File: ' . (is_file($local) ? 'YES' : 'NO'));
+        header('X-Debug-Is-Readable: ' . (is_readable($local) ? 'YES' : 'NO'));
+        // Realpath kontrol
+        $realLocal = @realpath($local);
+        header('X-Debug-Realpath: ' . ($realLocal ? urlencode($realLocal) : 'FALSE'));
+    }
+
     if (@is_file($local)) $src = $local;
 }
 
 // Local yoksa remote stream denemesi - DÜZELTİLDİ: $imageId yerine $id
-if ($src === null && numistr_stream_remote_by_image_id($id)) {
-    exit; // Stream başarılı, çık
+if ($src === null) {
+    if ($dbg) {
+        header('X-Debug-Local-Failed: YES');
+        header('X-Debug-Remote-URL: ' . urlencode($row->remote_url ?? ''));
+    }
+    if (numistr_stream_remote_by_image_id($id)) {
+        exit; // Stream başarılı, çık
+    }
 }
 
 // Local yoksa remote (whitelist + cURL)
