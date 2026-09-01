@@ -169,7 +169,20 @@
 }
 
 .numistr-file-upload input[type="file"] {
-    display: none;
+    /* display:none KULLANMA: alan 'required' oldugu icin, dosya secilmediginde
+       tarayici onu odaklayamaz ve gonderimi SESSIZCE reddeder (konsolda
+       "An invalid form control ... is not focusable"). Kullanici butonun
+       islevsiz oldugunu sanir. Gorunmez ama odaklanabilir birak. */
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.numistr-file-upload:focus-within {
+    border-color: #8B6914;
+    outline: 2px solid #8B6914;
+    outline-offset: 2px;
 }
 
 .numistr-interests {
@@ -372,7 +385,8 @@
 
             <div class="numistr-form-group">
                 <label>E-posta <span class="required">*</span></label>
-                <input type="email" name="email" required placeholder="ornek@universite.edu.tr">
+                <input type="email" name="email" required placeholder="E-posta adresiniz">
+                <div class="hint">Varsa üniversite e-posta adresinizi kullanın (ör. .edu.tr uzantılı); başvurunuzun doğrulanmasını hızlandırır.</div>
             </div>
         </div>
 
@@ -476,7 +490,7 @@
                 Ayrıntılar ve KVKK m.11 kapsamındaki haklarınız için
                 <a href="/tr/kvkk-ve-gizlilik-politikasi" target="_blank" rel="noopener">Gizlilik Politikası</a>
                 sayfasına bakabilirsiniz. Başvuru ve talepleriniz için:
-                <a href="mailto:bilgi@numistr.org">bilgi@numistr.org</a>
+                <a href="/tr/kvkk-ve-gizlilik-politikasi">Gizlilik Politikası sayfamızdaki iletişim bilgileri</a>
             </p>
             <label class="numistr-kvkk-consent">
                 <input type="checkbox" id="kvkkConsent" required>
@@ -528,7 +542,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fileLabel.querySelector('.upload-text').textContent = '✓ ' + fileName;
             fileLabel.classList.add('has-file');
         } else {
-            fileLabel.querySelector('.upload-text').textContent = 'Kimlik yüklemek için tıklayın';
+            fileLabel.querySelector('.upload-text').textContent = 'Öğrenci belgesi yüklemek için tıklayın';
             fileLabel.classList.remove('has-file');
         }
     });
