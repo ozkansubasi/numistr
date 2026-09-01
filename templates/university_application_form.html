@@ -187,7 +187,18 @@
 }
 
 .numistr-interest-chip input {
-    display: none;
+    /* display:none input'u eristirilebilirlik agacindan da cikarir ve klavyeyle
+       secilemez hale getirir. Gorunmez ama odaklanabilir birak. */
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+
+.numistr-interest-chip:focus-within {
+    outline: 2px solid #8B6914;
+    outline-offset: 2px;
 }
 
 .numistr-kvkk p {
@@ -478,13 +489,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Interest chip selection
     document.querySelectorAll('.numistr-interest-chip').forEach(chip => {
-        chip.addEventListener('click', function(e) {
-            if (e.target.tagName !== 'INPUT') {
-                const checkbox = this.querySelector('input');
-                checkbox.checked = !checkbox.checked;
-            }
-            this.classList.toggle('selected', this.querySelector('input').checked);
+        // NOT: chip bir label ogesidir ve icindeki checkbox'i sarar. Label'a tiklandiginda
+        // TARAYICI checkbox'i zaten degistirir ve input uzerinde sentetik bir click
+        // olayi uretir; bu olay label'a kabarir. Eski kod burada checkbox'i BIR KEZ
+        // DAHA cevirdigi icin secim aninda geri aliniyor ve hicbir sey secilemiyordu.
+        // Dogru cozum: tarayiciya karisma, yalnizca 'change' olayini dinleyip gorsel
+        // durumu guncelle.
+        const chipInput = chip.querySelector('input');
+
+        chipInput.addEventListener('change', function() {
+            chip.classList.toggle('selected', this.checked);
         });
+
+        // Sayfa geri/ileri ile geri gelirse isaretli durumu koru
+        chip.classList.toggle('selected', chipInput.checked);
     });
 
     // File upload visual feedback
