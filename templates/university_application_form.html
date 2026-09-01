@@ -190,6 +190,29 @@
     display: none;
 }
 
+.numistr-kvkk p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #4a5568;
+    margin: 0 0 10px;
+}
+.numistr-kvkk a { color: #b8860b; text-decoration: underline; }
+.numistr-kvkk-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #2d3748;
+    cursor: pointer;
+    margin-top: 6px;
+}
+.numistr-kvkk-consent input[type="checkbox"] {
+    margin-top: 3px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
 .numistr-submit-btn {
     width: 100%;
     padding: 16px;
@@ -405,6 +428,33 @@
                     Koruma ve Restorasyon
                 </label>
             </div>
+        </div>
+
+        <!-- KVKK aydınlatması — kimlik belgesi yüklendiği için toplama anında zorunlu -->
+        <div class="numistr-form-section numistr-kvkk">
+            <div class="numistr-section-title">
+                <div class="icon">🔒</div>
+                Kişisel Verilerin Korunması
+            </div>
+            <p>
+                Bu formla verdiğiniz ad, soyadı, e-posta, üniversite, bölüm, ilgi alanları ve
+                <strong>yüklediğiniz öğrenci kimlik belgesi</strong>; veri sorumlusu
+                <strong>AE Telekom Bilgi Teknolojileri Yazılım ve Ticaret A.Ş.</strong> tarafından
+                yalnızca <strong>öğrencilik statünüzün teyidi ve başvurunuzun değerlendirilmesi</strong>
+                amacıyla işlenir. Kimlik belgeniz web'den doğrudan erişime kapalı bir dizinde saklanır ve
+                <strong>başvurunuzun sonuçlandırılmasından sonra en geç 6 ay içinde silinir</strong>.
+                Verileriniz pazarlama amacıyla kullanılmaz ve üçüncü kişilerle paylaşılmaz.
+            </p>
+            <p>
+                Ayrıntılar ve KVKK m.11 kapsamındaki haklarınız için
+                <a href="/tr/kvkk-ve-gizlilik-politikasi" target="_blank" rel="noopener">Gizlilik Politikası</a>
+                sayfasına bakabilirsiniz. Başvuru ve talepleriniz için:
+                <a href="mailto:bilgi@numistr.org">bilgi@numistr.org</a>
+            </p>
+            <label class="numistr-kvkk-consent">
+                <input type="checkbox" id="kvkkConsent" required>
+                <span>Aydınlatma metnini okudum; öğrenci kimlik belgemin bu kapsamda işlenmesini kabul ediyorum.</span>
+            </label>
         </div>
 
         <button type="submit" class="numistr-submit-btn" id="submitBtn">
