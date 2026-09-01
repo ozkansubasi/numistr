@@ -54,6 +54,18 @@
     line-height: 1.6;
 }
 
+.numistr-info-box ul {
+    color: #333;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0 0 10px;
+    padding-left: 20px;
+}
+
+.numistr-info-box ul li {
+    margin-bottom: 6px;
+}
+
 .numistr-form-section {
     margin-bottom: 30px;
 }
@@ -318,13 +330,17 @@
 
 <div class="numistr-form-container">
     <div class="numistr-form-header">
-        <h2>🎓 Üniversite Pro Aboneliği</h2>
+        <h2>🎓 Üniversite Öğrencileri için Üyelik Formu</h2>
         <p>Tarih ve Arkeoloji öğrencilerine ücretsiz Pro erişim</p>
     </div>
 
     <div class="numistr-info-box">
-        <h4>ℹ️ Ücretsiz Pro Abonelik</h4>
-        <p>Tarih, Arkeoloji, Sanat Tarihi ve ilgili bölümlerdeki üniversite öğrencileri ücretsiz Pro abonelik başvurusu yapabilir. Başvurunuz onaylandıktan sonra tüm Pro özelliklerine erişebilirsiniz.</p>
+        <h4>ℹ️ Başvuru Koşulları</h4>
+        <ul>
+            <li><strong>Yalnızca Tarih ve Arkeoloji</strong> bölümlerinde öğrenim gören üniversite öğrencileri başvurabilir.</li>
+            <li><strong>Öğrenci belgesi gereklidir.</strong> Başvurunuza güncel öğrenci belgenizi eklemeniz zorunludur.</li>
+        </ul>
+        <p>Başvurunuz onaylandıktan sonra tüm Pro özelliklerine ücretsiz erişebilirsiniz.</p>
     </div>
 
     <div class="numistr-error-message" id="errorMessage"></div>
@@ -374,8 +390,8 @@
 
             <div class="numistr-form-group">
                 <label>Bölüm <span class="required">*</span></label>
-                <input type="text" name="department" required placeholder="ör: Tarih, Arkeoloji, Sanat Tarihi">
-                <div class="hint">Tarih, Arkeoloji, Sanat Tarihi ve ilgili bölümler kabul edilmektedir.</div>
+                <input type="text" name="department" required placeholder="ör: Tarih, Arkeoloji">
+                <div class="hint">Yalnızca Tarih ve Arkeoloji bölümleri kabul edilmektedir.</div>
             </div>
         </div>
 
@@ -389,11 +405,11 @@
             <div class="numistr-form-group">
                 <label class="numistr-file-upload" id="fileUploadLabel">
                     <div class="upload-icon">📷</div>
-                    <div class="upload-text">Kimlik yüklemek için tıklayın</div>
-                    <div class="upload-hint">JPG, PNG formatları kabul edilir (maks. 5MB)</div>
+                    <div class="upload-text">Öğrenci belgesi yüklemek için tıklayın</div>
+                    <div class="upload-hint">JPG, PNG veya PDF kabul edilir (maks. 5MB)</div>
                     <input type="file" name="id_card" id="idCardInput" accept="image/*,.pdf" required>
                 </label>
-                <div class="hint">Güncel üniversite öğrenci kimliğinizin fotoğrafını yükleyin. Kimliğinizde adınız, üniversiteniz ve bölümünüz görünür olmalıdır.</div>
+                <div class="hint">Güncel <strong>öğrenci belgenizi</strong> yükleyin (üniversiteden alınmış, bu döneme ait). Belgede adınız, üniversiteniz ve bölümünüz görünür olmalıdır. Öğrenci kimlik kartınızın fotoğrafı da kabul edilir.</div>
             </div>
         </div>
 
