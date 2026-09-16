@@ -5,6 +5,10 @@
            label="Sikke Görsel Klasörü (Kök)"
            description="Sikke görsellerinin BÖLGE KÖK klasörü. Örn: ../sikke" />
 
+    <field name="pro_group_id" type="text" default="10"
+      label="Pro kullanıcı grubu ID" description="ADR-006 Faz 2: bu gruptaki oturum açmış kullanıcılar wm=2 (filigransız) görseli görebilir. Plugin PRO_GROUP_ID ile aynı olmalı." />
+    <field name="hd_sign_secret" type="password" default=""
+      label="HD imza sırrı (YEDEK)" description="Asıl kaynak plugin config/secrets.php 'image_hd_secret'. Yalnız o dosya okunamazsa kullanılır." />
     <field name="region_map_json" type="textarea" filter="raw"
            label="Bölge Eşleştirme Tablosu (JSON)"
            description="Kategori alias → klasör adı eşleştirmesi. Örn: {&quot;galatia-coins&quot;:&quot;galatia&quot;}"

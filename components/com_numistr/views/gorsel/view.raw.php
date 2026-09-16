@@ -143,6 +143,89 @@ function numistr_download_remote_curl(
     return $final;
 }
 }
+// ---------------------------------------------------------------------------
+// ADR-006 Faz 2 — HD (filigransız, kaynak çözünürlüğü) yardımcıları
+// İmza algoritması plugin'deki NumisTRImageSign ile BİREBİR aynı; iki uzantı arasında
+// require bağı bilinçli olarak kurulmadı. Ortak test vektörü: plugin tests/Images/HdSignatureTest.php
+// ---------------------------------------------------------------------------
+if (!function_exists('numistr_hd_secret')) {
+function numistr_hd_secret($params): string {
+    // Tek kaynak: plugin secrets.php ('image_hd_secret'); bileşen ayarı yalnız yedek.
+    $f = JPATH_PLUGINS . '/webservices/numistr/config/secrets.php';
+    if (@is_file($f)) {
+        $arr = @include $f;
+        if (is_array($arr) && !empty($arr['image_hd_secret'])) return (string)$arr['image_hd_secret'];
+    }
+    return (string)($params->get('hd_sign_secret', '') ?? '');
+}
+function numistr_hd_sign(int $imageId, int $userId, int $exp, string $secret): string {
+    $raw = hash_hmac('sha256', 'hd|' . $imageId . '|' . $userId . '|' . $exp, $secret, true);
+    return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
+}
+function numistr_hd_verify(int $imageId, int $userId, int $exp, string $sig, string $secret, ?int $now = null): bool {
+    if ($secret === '' || $sig === '' || $imageId <= 0 || $userId <= 0) return false;
+    if ($exp <= ($now ?? time())) return false;
+    return hash_equals(numistr_hd_sign($imageId, $userId, $exp, $secret), $sig);
+}
+function numistr_hd_authorized(int $imageId, $params): bool {
+    $app = \Joomla\CMS\Factory::getApplication();
+    // (a) imzalı URL (mobil uygulama; plugin Pro kararını verip imzalar)
+    $u   = (int)$app->input->getInt('u', 0);
+    $exp = (int)$app->input->getInt('exp', 0);
+    $sig = (string)$app->input->getString('sig', '');
+    if ($sig !== '' && numistr_hd_verify($imageId, $u, $exp, $sig, numistr_hd_secret($params))) {
+        header('X-NumisTR-HD-Auth: sig');
+        return true;
+    }
+    // (b) web oturumu: Pro grubundaki kullanıcı (numistr_gallery.php lightbox'ı wm=2 üretir)
+    try {
+        $user = $app->getIdentity();
+        if ($user && !$user->guest) {
+            $proGroupId = (int)$params->get('pro_group_id', 10);
+            if ($proGroupId > 0 && in_array($proGroupId, $user->getAuthorisedGroups(), true)) {
+                header('X-NumisTR-HD-Auth: session');
+                return true;
+            }
+        }
+    } catch (\Throwable $e) { /* oturum yoksa reddet */ }
+    return false;
+}
+/** Kaynak çözünürlüğünde (büyütme yok, yalnız $maxEdge tavanı), filigransız, EXIF'siz JPEG. */
+function numistr_make_hd(string $src, string $out, int $maxEdge = 2400): string {
+    numistr_ensure_dir(dirname($out));
+    if (extension_loaded('imagick')) {
+        $im = new \Imagick($src);
+        $im->setImageOrientation(\Imagick::ORIENTATION_TOPLEFT);
+        if (max($im->getImageWidth(), $im->getImageHeight()) > $maxEdge) {
+            $im->thumbnailImage($maxEdge, $maxEdge, true, false);
+        }
+        $im->setImageFormat('jpeg');
+        $im->setImageCompression(\Imagick::COMPRESSION_JPEG);
+        $im->setImageCompressionQuality(90);
+        $im->stripImage();
+        if (!$im->writeImage($out)) { $im->destroy(); throw new \RuntimeException('hd_write'); }
+        $im->destroy();
+        return $out;
+    }
+    $info = @getimagesize($src); if (!$info) throw new \RuntimeException('bad_image');
+    [$w, $h, $type] = $info;
+    $ratio = (max($w, $h) > $maxEdge) ? $maxEdge / max($w, $h) : 1.0;
+    $nw = max(1, (int)round($w * $ratio)); $nh = max(1, (int)round($h * $ratio));
+    switch ($type) {
+        case IMAGETYPE_JPEG: $in = imagecreatefromjpeg($src); break;
+        case IMAGETYPE_PNG:  $in = imagecreatefrompng($src);  break;
+        case IMAGETYPE_WEBP: $in = function_exists('imagecreatefromwebp') ? imagecreatefromwebp($src) : null; break;
+        default: $in = null;
+    }
+    if (!$in) throw new \RuntimeException('unsupported_image_type');
+    $outIm = imagecreatetruecolor($nw, $nh);
+    imagecopyresampled($outIm, $in, 0, 0, 0, 0, $nw, $nh, $w, $h);
+    imagejpeg($outIm, $out, 90);
+    imagedestroy($in); imagedestroy($outIm);
+    return $out;
+}
+}
+
 if (!function_exists('numistr_make_thumb')) {
 function numistr_make_thumb(string $src, string $out, int $maxEdge = 480): string {
     numistr_ensure_dir(dirname($out));
@@ -494,9 +577,22 @@ $CACHE_BASE        = rtrim(JPATH_ROOT,'/').'/../sikke_cache';
 $CACHE_ORIG_DIR    = $CACHE_BASE . '/original';
 $CACHE_TH_DIR      = $CACHE_BASE . '/thumbs';
 $CACHE_WM_DIR      = $CACHE_BASE . '/large_wm';
+$CACHE_HD_DIR      = $CACHE_BASE . '/hd';
 $WATERMARK_PNG     = JPATH_ROOT . '/media/watermark.png';
+
+// === ADR-006 Faz 2: wm=2 (filigransız, kaynak çözünürlüğü) YALNIZ yetkiliye ===
+// Yetki: (a) plugin'in ürettiği süreli HMAC imzası (u/exp/sig) ya da (b) Pro grubundaki
+// oturum açmış web kullanıcısı. İkisi de yoksa 403 — thumb'a sessizce DÜŞÜLMEZ (yanlış
+// tasarlanmış kapı 72K görsellik arşivi sızdırır; ret açık olmalı). wm=0/1 eskisi gibi açık.
+if ($wm === 2 && !numistr_hd_authorized($id, $params)) {
+    http_response_code(403);
+    header('Cache-Control: no-store');
+    header('X-NumisTR-Tier: hd-denied');
+    exit('forbidden');
+}
 $THUMB_MAX_EDGE    = 480;
 $LARGE_MAX_EDGE    = 1600;
+$HD_MAX_EDGE       = 2400; // ADR-006 Faz 2: Pro filigransız — büyütme YOK, yalnız tavan
 $REMOTE_MAX_MB     = 15;
 
 // Dizinleri hazırla
@@ -649,6 +745,23 @@ if ($wm === 0) {
     header('Content-Type: image/jpeg');
     header('Cache-Control: public, max-age=31536000, immutable');
     readfile($thumbPath);
+    exit;
+} elseif ($wm === 2) {
+    // ADR-006 Faz 2 — yetki yukarıda doğrulandı (imza ya da Pro oturumu)
+    $hdDir  = rtrim($CACHE_HD_DIR, '/') . '/' . $folder; numistr_ensure_dir($hdDir);
+    $hdPath = $hdDir . '/' . $baseName . '_hd1.jpg';
+    if ($force && @is_file($hdPath)) { @unlink($hdPath); }
+    if (!@is_file($hdPath)) {
+        try { numistr_make_hd($src, $hdPath, $HD_MAX_EDGE); }
+        catch (\Throwable $e) {
+            if ($dbg) { header('Content-Type: text/plain; charset=UTF-8'); echo 'hd gen failed: ' . $e->getMessage(); exit; }
+            http_response_code(500); exit('hd gen failed');
+        }
+    }
+    header('Content-Type: image/jpeg');
+    header('Cache-Control: private, max-age=3600'); // imzalı URL kişiye özel; ortak önbelleğe girmesin
+    header('X-NumisTR-Tier: hd');
+    readfile($hdPath);
     exit;
 } else {
     if (!@is_file($wmPath)) {
