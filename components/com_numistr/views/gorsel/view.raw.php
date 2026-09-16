@@ -149,14 +149,19 @@ function numistr_download_remote_curl(
 // require bağı bilinçli olarak kurulmadı. Ortak test vektörü: plugin tests/Images/HdSignatureTest.php
 // ---------------------------------------------------------------------------
 if (!function_exists('numistr_hd_secret')) {
-function numistr_hd_secret($params): string {
+function numistr_hd_secret($params, ?string &$src = null): string {
     // Tek kaynak: plugin secrets.php ('image_hd_secret'); bileşen ayarı yalnız yedek.
     $f = JPATH_PLUGINS . '/webservices/numistr/config/secrets.php';
     if (@is_file($f)) {
         $arr = @include $f;
-        if (is_array($arr) && !empty($arr['image_hd_secret'])) return (string)$arr['image_hd_secret'];
+        if (is_array($arr) && !empty($arr['image_hd_secret'])) { $src = 'plugin'; return (string)$arr['image_hd_secret']; }
+        $src = is_array($arr) ? 'plugin-dosya-var-anahtar-yok' : 'plugin-dosya-okunamadi';
+    } else {
+        $src = 'plugin-dosya-yok';
     }
-    return (string)($params->get('hd_sign_secret', '') ?? '');
+    $p = (string)($params->get('hd_sign_secret', '') ?? '');
+    if ($p !== '') $src = 'bilesen-param';
+    return $p;
 }
 function numistr_hd_sign(int $imageId, int $userId, int $exp, string $secret): string {
     $raw = hash_hmac('sha256', 'hd|' . $imageId . '|' . $userId . '|' . $exp, $secret, true);
@@ -173,7 +178,13 @@ function numistr_hd_authorized(int $imageId, $params): bool {
     $u   = (int)$app->input->getInt('u', 0);
     $exp = (int)$app->input->getInt('exp', 0);
     $sig = (string)$app->input->getString('sig', '');
-    if ($sig !== '' && numistr_hd_verify($imageId, $u, $exp, $sig, numistr_hd_secret($params))) {
+    $secret = numistr_hd_secret($params, $secretSrc);
+    if ((int)$app->input->getInt('debug', 0) === 1) {
+        // Teşhis: sırrın kendisi ASLA yazılmaz; yalnız uzunluk/kaynak ve istek parametrelerinin şekli
+        header('X-Debug-HD: secret_len=' . strlen($secret) . ' src=' . ($secretSrc ?? 'none') . ' u=' . $u
+            . ' exp_delta=' . ($exp - time()) . ' sig_len=' . strlen($sig) . ' sig_head=' . substr($sig, 0, 6));
+    }
+    if ($sig !== '' && numistr_hd_verify($imageId, $u, $exp, $sig, $secret)) {
         header('X-NumisTR-HD-Auth: sig');
         return true;
     }
