@@ -7,7 +7,7 @@
  *
  * - Lokal yoksa whitelist edilen uzak kaynaktan indirir (cURL).
  * - CA bundle otomatik: php.ini → /_secure/certs/cacert.pem
- * - British Museum "full_IMG" 404'larında "small_IMG" fallback.
+ * - British Museum "full_*" 404 fallback zinciri: large_ → small_ (tüm aileler).
  * - SSL chain hatasında (CA problemi) tek sefer insecure retry (WHITELIST alanlar).
  * - Debug: &debug=1  |  Test amaçlı TLS kapatma: &allow_insecure=1
  */
@@ -83,11 +83,42 @@ function numistr_is_ssl_chain_error(string $msg): bool {
     return str_contains($m, 'ssl certificate problem') || str_contains($m, 'unable to get local issuer certificate');
 }
 }
-if (!function_exists('numistr_bm_small_variant')) {
-function numistr_bm_small_variant(string $url): ?string {
-    if (numistr_host($url) !== 'media.britishmuseum.org') return null;
-    $p = parse_url($url, PHP_URL_PATH) ?: '';
-    if (strpos($p, '/full_IMG_') !== false) return str_replace('/full_IMG_', '/small_IMG_', $url);
+if (!function_exists('numistr_bm_fallback_urls')) {
+/**
+ * BM "full_*" 404'lerinde denenecek yedek URL'ler (kaliteden düşüğe).
+ * Ölçüm 2026-09-18: DB'deki 5.198 "full_" URL'in tamamı 404; 28 örnekte
+ * large_ 26/28, small_ 28/28 çalışıyor. Bu yüzden tek desen değil zincir.
+ * Yalnız dosya adının önekine dokunulur (dizin yolundaki "full_" korunur).
+ */
+function numistr_bm_fallback_urls(string $url): array {
+    if (numistr_host($url) !== 'media.britishmuseum.org') return [];
+    $pos = strrpos($url, '/');
+    if ($pos === false) return [];
+    $dir  = substr($url, 0, $pos + 1);
+    $base = substr($url, $pos + 1);
+    if (strncmp($base, 'full_', 5) !== 0) return [];
+    $rest = substr($base, 5);
+    return [$dir . 'large_' . $rest, $dir . 'small_' . $rest];
+}
+}
+if (!function_exists('numistr_bm_try_fallbacks')) {
+/**
+ * Yedek URL'leri sırayla dener; ilk başarılı olanın cache dosya yolunu döndürür.
+ * Hiçbiri tutmazsa null → çağıran taraf mevcut 404 davranışını sürdürür.
+ */
+function numistr_bm_try_fallbacks(string $url, string $cacheDir, int $maxMB, $cainfo, bool $insecure, $dbg): ?string {
+    foreach (numistr_bm_fallback_urls($url) as $cand) {
+        $key = sha1($cand);
+        $tmp = $cacheDir.'/'.$key.'.tmp';
+        $fin = $cacheDir.'/'.$key.'.bin';
+        if (@is_file($fin)) return $fin;
+        try {
+            numistr_download_remote_curl($cand,$tmp,$fin,$maxMB,$cainfo,$insecure,$dbg,'https://www.britishmuseum.org/');
+            return $fin;
+        } catch (\Throwable $e) {
+            // bu aday tutmadı; sıradakini dene
+        }
+    }
     return null;
 }
 }
@@ -693,29 +724,21 @@ if (!$src && !empty($row->remote_url) && numistr_is_http($row->remote_url) && nu
                     $ref = (numistr_host($row->remote_url) === 'media.britishmuseum.org') ? 'https://www.britishmuseum.org/' : null;
                     numistr_download_remote_curl($row->remote_url,$tmp,$final,$REMOTE_MAX_MB,$cainfo,true,$dbg,$ref);
                 } catch (\Throwable $e2) {
-                    // 3) BM ise small varyanta düş (insecure)
-                    $bmSmall = numistr_bm_small_variant($row->remote_url);
-                    if ($bmSmall) {
-                        $key2   = sha1($bmSmall);
-                        $tmp2   = $CACHE_ORIG_DIR.'/'.$key2.'.tmp';
-                        $final2 = $CACHE_ORIG_DIR.'/'.$key2.'.bin';
-                        numistr_download_remote_curl($bmSmall,$tmp2,$final2,$REMOTE_MAX_MB,$cainfo,true,$dbg,'https://www.britishmuseum.org/');
-                        $final  = $final2;
+                    // 3) BM ise yedek varyantlara düş: large_ → small_ (insecure)
+                    $bmFinal = numistr_bm_try_fallbacks($row->remote_url,$CACHE_ORIG_DIR,$REMOTE_MAX_MB,$cainfo,true,$dbg);
+                    if ($bmFinal) {
+                        $final = $bmFinal;
                     } else {
                         if ($dbg) { header('Content-Type: text/plain; charset=UTF-8'); echo "remote fail debug: ".$e2->getMessage()."\n"; echo "cainfo: ".($cainfo?:'(none)')."\n"; exit; }
                         http_response_code(404); exit('remote fail');
                     }
                 }
             }
-            // 4) Güvenli 4xx ve BM ise → small varyantı (güvenli)
+            // 4) Güvenli 4xx ve BM ise → yedek varyantlar: large_ → small_ (güvenli)
             elseif ($code >= 400) {
-                $bmSmall = numistr_bm_small_variant($row->remote_url);
-                if ($bmSmall) {
-                    $key2   = sha1($bmSmall);
-                    $tmp2   = $CACHE_ORIG_DIR.'/'.$key2.'.tmp';
-                    $final2 = $CACHE_ORIG_DIR.'/'.$key2.'.bin';
-                    numistr_download_remote_curl($bmSmall,$tmp2,$final2,$REMOTE_MAX_MB,$cainfo,false,$dbg,'https://www.britishmuseum.org/');
-                    $final = $final2;
+                $bmFinal = numistr_bm_try_fallbacks($row->remote_url,$CACHE_ORIG_DIR,$REMOTE_MAX_MB,$cainfo,false,$dbg);
+                if ($bmFinal) {
+                    $final = $bmFinal;
                 } else {
                     if ($dbg) { header('Content-Type: text/plain; charset=UTF-8'); echo "remote fail debug: ".$msg."\n"; echo "cainfo: ".($cainfo?:'(none)')."\n"; exit; }
                     http_response_code(404); exit('remote fail');
