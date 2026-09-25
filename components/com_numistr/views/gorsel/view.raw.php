@@ -645,7 +645,7 @@ numistr_ensure_dir($CACHE_WM_DIR);
 
 // Kayıt
 $q = $db->getQuery(true)
-    ->select(['ci.coin_id','ci.filename','ci.remote_url'])
+    ->select(['ci.coin_id','ci.filename','ci.remote_url','ci.license_ok'])
     ->from($db->quoteName('coins_images','ci'))
     ->where('ci.image_id='.(int)$id)->setLimit(1);
 $db->setQuery($q);
@@ -755,6 +755,22 @@ if (!$src && !empty($row->remote_url) && numistr_is_http($row->remote_url) && nu
 }
 
 if (!$src) { http_response_code(404); exit('not found'); }
+
+// === ADR-008 revizyonu (2026-09-25): serbest lisanslı OLMAYAN görsel değiştirilmeden verilir ===
+// Filigran yalnız serbest lisanslı (license_ok=1) görsellere basılır; Pro'nun filigransız avantajı yalnız
+// onlarda geçerli. NC / lisansı doğrulanmamış görselde wm=1 ve wm=2 aynı çıktıyı verir: kaynak dosya olduğu
+// gibi — filigran yok, yeniden kodlama yok, EXIF/telif bilgisi korunur (ADR-008 §3.1-4). Uzak görseller zaten
+// numistr_stream_remote_by_image_id() ile değiştirilmeden akıyor; bu blok yerel dosyalı olanları kapsar.
+// wm=0 (480 px önizleme) değişmez. wm=2 yetki kapısı yukarıda aynen çalışır.
+if ($wm !== 0 && (int)($row->license_ok ?? 0) !== 1) {
+    $info = @getimagesize($src);
+    $mime = (is_array($info) && !empty($info['mime'])) ? (string)$info['mime'] : 'image/jpeg';
+    header('Content-Type: ' . $mime);
+    header('Cache-Control: public, max-age=604800');
+    header('X-NumisTR-Lisans: ozgun');
+    readfile($src);
+    exit;
+}
 
 // === ÇIKIŞ YOLLARI (safety) ===
 if (!isset($baseName) || $baseName === '') {
