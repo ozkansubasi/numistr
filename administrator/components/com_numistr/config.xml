@@ -46,6 +46,10 @@
     <field name="watermark_opacity" type="number" default="60"
            label="Watermark Opaklık (%)"
            description="0 (tam şeffaf) - 100 (tam opak)" />
+
+    <field name="remote_whitelist" type="textarea" filter="raw" rows="8" default=""
+           label="Uzak görsel beyaz listesi"
+           description="Sunucunun indirip disk önbelleğinde (sikke_cache/original) saklayabileceği uzak görsel sunucuları. VİRGÜLLE ayrılmış tam alan adları (ör. gallica.bnf.fr,media.britishmuseum.org). Boşsa yalnız bu ikisi. Listede olmayan kaynak saklanmaz, her istekte müzeden anlık akar (yavaş). localhost gibi iç adresleri EKLEMEYİN." />
   </fieldset>
 
 
