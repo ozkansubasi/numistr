@@ -174,6 +174,54 @@ function numistr_download_remote_curl(
     return $final;
 }
 }
+if (!function_exists('numistr_fetch_remote_cached')) {
+/**
+ * Uzak görsel diskte: sikke_cache/original/<sha1(url)>.bin — bir kez indirilir, DEĞİŞTİRİLMEDEN saklanır
+ * (ADR-008 §3.1-4: baytlar aynı, EXIF/telif korunur), sonraki istekler diskten. Başarısızsa null; çağıran
+ * eski anlık akışa düşer. Deneme sırası eski satır içi bloğun aynısı: güvenli → (SSL zincir hatası ya da
+ * allow_insecure) güvensiz → BM ise large_/small_ yedekleri.
+ *
+ * - Geçici dosya süreç başına tekil: aynı görsele eşzamanlı iki istek (liste + ısıtma) aynı .tmp'ye yazmasın.
+ * - BM yedeği bulunursa asıl anahtara da bağlanır: yoksa her istek önce "full_" 404'ünü yeniden indirirdi.
+ * - $kind: 'cache' (diskten) | 'fetch' (şimdi indirildi).
+ */
+function numistr_fetch_remote_cached(string $url, string $cacheDir, int $maxMB, bool $insecureRetry, int $dbg, ?string &$kind = null): ?string {
+    $key   = sha1($url);
+    $final = $cacheDir.'/'.$key.'.bin';
+    if (@is_file($final)) { $kind = 'cache'; return $final; }
+
+    $kind   = 'fetch';
+    $tmp    = $cacheDir.'/'.$key.'.'.getmypid().'-'.bin2hex(random_bytes(3)).'.tmp';
+    $cainfo = numistr_pick_cainfo_path();
+    $ref    = (numistr_host($url) === 'media.britishmuseum.org') ? 'https://www.britishmuseum.org/' : null;
+    $bm     = null;
+
+    try {
+        return numistr_download_remote_curl($url,$tmp,$final,$maxMB,$cainfo,false,$dbg,$ref);
+    } catch (\Throwable $e) {
+        $msg  = $e->getMessage();
+        $code = (preg_match('~http=(\d+)~',$msg,$m)?(int)$m[1]:0);
+    }
+
+    if (numistr_is_ssl_chain_error($msg) || $insecureRetry) {
+        try {
+            return numistr_download_remote_curl($url,$tmp,$final,$maxMB,$cainfo,true,$dbg,$ref);
+        } catch (\Throwable $e2) {
+            $msg = $e2->getMessage();
+            $bm  = numistr_bm_try_fallbacks($url,$cacheDir,$maxMB,$cainfo,true,$dbg);
+        }
+    } elseif ($code >= 400) {
+        $bm = numistr_bm_try_fallbacks($url,$cacheDir,$maxMB,$cainfo,false,$dbg);
+    }
+
+    if ($bm) {
+        if (!@link($bm, $final)) @copy($bm, $final);
+        return $bm;
+    }
+    if ($dbg && !headers_sent()) header('X-Debug-Remote-Fail: '.substr(preg_replace('~\s+~',' ',$msg),0,200));
+    return null;
+}
+}
 // ---------------------------------------------------------------------------
 // ADR-006 Faz 2 — HD (filigransız, kaynak çözünürlüğü) yardımcıları
 // İmza algoritması plugin'deki NumisTRImageSign ile BİREBİR aynı; iki uzantı arasında
@@ -691,8 +739,17 @@ if (!empty($row->filename)) {
     if (@is_file($local)) $src = $local;
 }
 
-// Local yoksa remote stream denemesi - DÜZELTİLDİ: $imageId yerine $id
-if ($src === null) {
+// Local yoksa: beyaz listedeki uzak görsel disk önbelleğinden (yoksa bir kez indirilip değiştirilmeden saklanır).
+// 2026-09-27: eskiden ÖNCE anlık akış deneniyor ve başarılı olunca çıkılıyordu → bu önbellek katmanı hiç
+// çalışmıyor, her istek müzeden yeniden indiriliyordu (tekrar isteklerde 2,1–3,6 sn; paylaşımlı sunucuda
+// PHP işlemi o süre meşgul, eşzamanlı API istekleri 0,15 → 0,6–0,8 sn). Beyaz liste koşulu aynen korunur.
+$srcKind = $src ? 'local' : '';
+if (!$src && !empty($row->remote_url) && numistr_is_http($row->remote_url) && numistr_is_whitelisted_host($row->remote_url,$WHITELIST)) {
+    $src = numistr_fetch_remote_cached((string)$row->remote_url, $CACHE_ORIG_DIR, $REMOTE_MAX_MB, (bool)$insecQ, $dbg, $srcKind);
+}
+
+// Beyaz liste dışı ya da saklanamadı (image/* değil, 15 MB üstü, zaman aşımı…): eski davranış — anlık akış.
+if (!$src) {
     if ($dbg) {
         header('X-Debug-Local-Failed: YES');
         header('X-Debug-Remote-URL: ' . urlencode($row->remote_url ?? ''));
@@ -702,66 +759,16 @@ if ($src === null) {
     }
 }
 
-// Local yoksa remote (whitelist + cURL)
-if (!$src && !empty($row->remote_url) && numistr_is_http($row->remote_url) && numistr_is_whitelisted_host($row->remote_url,$WHITELIST)) {
-    $cainfo = numistr_pick_cainfo_path();
-    $key    = sha1($row->remote_url);
-    $tmp    = $CACHE_ORIG_DIR.'/'.$key.'.tmp';
-    $final  = $CACHE_ORIG_DIR.'/'.$key.'.bin';
-
-    if (!@is_file($final)) {
-        try {
-            $ref = (numistr_host($row->remote_url) === 'media.britishmuseum.org') ? 'https://www.britishmuseum.org/' : null;
-            // 1) güvenli dene
-            numistr_download_remote_curl($row->remote_url,$tmp,$final,$REMOTE_MAX_MB,$cainfo,false,$dbg,$ref);
-        } catch (\Throwable $e) {
-            $msg  = $e->getMessage();
-            $code = (preg_match('~http=(\d+)~',$msg,$m)?(int)$m[1]:0);
-
-            // 2) SSL chain hatası → tek sefer insecure retry
-            if (numistr_is_ssl_chain_error($msg) || $insecQ) {
-                try {
-                    $ref = (numistr_host($row->remote_url) === 'media.britishmuseum.org') ? 'https://www.britishmuseum.org/' : null;
-                    numistr_download_remote_curl($row->remote_url,$tmp,$final,$REMOTE_MAX_MB,$cainfo,true,$dbg,$ref);
-                } catch (\Throwable $e2) {
-                    // 3) BM ise yedek varyantlara düş: large_ → small_ (insecure)
-                    $bmFinal = numistr_bm_try_fallbacks($row->remote_url,$CACHE_ORIG_DIR,$REMOTE_MAX_MB,$cainfo,true,$dbg);
-                    if ($bmFinal) {
-                        $final = $bmFinal;
-                    } else {
-                        if ($dbg) { header('Content-Type: text/plain; charset=UTF-8'); echo "remote fail debug: ".$e2->getMessage()."\n"; echo "cainfo: ".($cainfo?:'(none)')."\n"; exit; }
-                        http_response_code(404); exit('remote fail');
-                    }
-                }
-            }
-            // 4) Güvenli 4xx ve BM ise → yedek varyantlar: large_ → small_ (güvenli)
-            elseif ($code >= 400) {
-                $bmFinal = numistr_bm_try_fallbacks($row->remote_url,$CACHE_ORIG_DIR,$REMOTE_MAX_MB,$cainfo,false,$dbg);
-                if ($bmFinal) {
-                    $final = $bmFinal;
-                } else {
-                    if ($dbg) { header('Content-Type: text/plain; charset=UTF-8'); echo "remote fail debug: ".$msg."\n"; echo "cainfo: ".($cainfo?:'(none)')."\n"; exit; }
-                    http_response_code(404); exit('remote fail');
-                }
-            }
-            // 5) diğer hatalar
-            else {
-                if ($dbg) { header('Content-Type: text/plain; charset=UTF-8'); echo "remote fail debug: ".$msg."\n"; echo "cainfo: ".($cainfo?:'(none)')."\n"; exit; }
-                http_response_code(404); exit('remote fail');
-            }
-        }
-    }
-    $src = $final;
-}
-
 if (!$src) { http_response_code(404); exit('not found'); }
+header('X-NumisTR-Src: ' . $srcKind); // local | cache | fetch — ölçüm ve ısıtma için
 
 // === ADR-008 revizyonu (2026-09-25): serbest lisanslı OLMAYAN görsel değiştirilmeden verilir ===
 // Filigran yalnız serbest lisanslı (license_ok=1) görsellere basılır; Pro'nun filigransız avantajı yalnız
 // onlarda geçerli. NC / lisansı doğrulanmamış görselde wm=1 ve wm=2 aynı çıktıyı verir: kaynak dosya olduğu
-// gibi — filigran yok, yeniden kodlama yok, EXIF/telif bilgisi korunur (ADR-008 §3.1-4). Uzak görseller zaten
-// numistr_stream_remote_by_image_id() ile değiştirilmeden akıyor; bu blok yerel dosyalı olanları kapsar.
-// wm=0 (480 px önizleme) değişmez. wm=2 yetki kapısı yukarıda aynen çalışır.
+// gibi — filigran yok, yeniden kodlama yok, EXIF/telif bilgisi korunur (ADR-008 §3.1-4). Beyaz listedeki uzak
+// görseller de (1.5.3'ten beri) değiştirilmeden saklanan disk kopyasından bu bloktan geçer; liste dışı ve
+// saklanamayanlar numistr_stream_remote_by_image_id() ile anlık akar. wm=0 (480 px önizleme) değişmez. wm=2 yetki kapısı
+// yukarıda aynen çalışır.
 if ($wm !== 0 && (int)($row->license_ok ?? 0) !== 1) {
     $info = @getimagesize($src);
     $mime = (is_array($info) && !empty($info['mime'])) ? (string)$info['mime'] : 'image/jpeg';
