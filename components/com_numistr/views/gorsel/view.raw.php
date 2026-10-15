@@ -693,7 +693,7 @@ numistr_ensure_dir($CACHE_WM_DIR);
 
 // Kayıt
 $q = $db->getQuery(true)
-    ->select(['ci.coin_id','ci.filename','ci.remote_url','ci.license_ok'])
+    ->select(['ci.coin_id','ci.filename','ci.remote_url','ci.license_ok','ci.source_unavailable'])
     ->from($db->quoteName('coins_images','ci'))
     ->where('ci.image_id='.(int)$id)->setLimit(1);
 $db->setQuery($q);
@@ -744,6 +744,18 @@ if (!empty($row->filename)) {
 // çalışmıyor, her istek müzeden yeniden indiriliyordu (tekrar isteklerde 2,1–3,6 sn; paylaşımlı sunucuda
 // PHP işlemi o süre meşgul, eşzamanlı API istekleri 0,15 → 0,6–0,8 sn). Beyaz liste koşulu aynen korunur.
 $srcKind = $src ? 'local' : '';
+
+// 1.5.5 (G12, 2026-10-16): kaynağı erişilemeyen diye işaretli görsel yerelde ve kalıcı önbellekte de yoksa uzağa hiç
+// gidilmez (kaynak engelli/ölü — ör. Gallica Cloudflare). Listeler bu görselleri artık vermiyor ama tam sayfa önbelleğindeki
+// eski galeriler bir süre daha isteyecek; her istek kaynağa boşuna çıkmasın.
+if (!$src && (int)($row->source_unavailable ?? 0) === 1
+    && !@is_file($CACHE_ORIG_DIR . '/' . sha1((string)($row->remote_url ?? '')) . '.bin')) {
+    http_response_code(404);
+    header('Cache-Control: public, max-age=86400');
+    header('X-NumisTR-Source: unavailable');
+    exit('not found');
+}
+
 if (!$src && !empty($row->remote_url) && numistr_is_http($row->remote_url) && numistr_is_whitelisted_host($row->remote_url,$WHITELIST)) {
     $src = numistr_fetch_remote_cached((string)$row->remote_url, $CACHE_ORIG_DIR, $REMOTE_MAX_MB, (bool)$insecQ, $dbg, $srcKind);
 }
