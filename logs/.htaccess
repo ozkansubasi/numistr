@@ -1,0 +1,9 @@
+# public_html/logs — web erişimine kapalı (2026-10-25).
+# numistr_gallery_debug.log herkese açıktı (97,8 MB); günlükler yalnız sunucudan okunur.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
