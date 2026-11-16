@@ -3,11 +3,28 @@
 # Bu dosya hatalı karakterlerden temizlenmiş ve yeniden düzenlenmiştir.
 ##
 
-### === Numistr: dynamic image endpoint (no cache) ===
+### === Numistr: dynamic image endpoint ===
+# 16 Kas 2026: görsel ucu yönlendirmesiz ve tarayıcıda önbellekli.
+# Runbook: claudedocs/deploy/runbooks/2026-11-16-htaccess-gorsel-onbellek.md (NumisTR ana depo)
 
-# 2.1: Bir env bayrağı ata (sadece com_numistr istekleri için)
 <IfModule mod_rewrite.c>
 RewriteEngine On
+
+# 2.0: Görsel ucunda dil yönlendirmesini atla. Adreste lang yoksa içeride lang=tr eklenir;
+#      Joomla dil filtresi /tr/?... adresine 301 atmaz (görsel dilden bağımsız).
+RewriteCond %{QUERY_STRING} (^|&)option=com_numistr(&|$)
+RewriteCond %{QUERY_STRING} (^|&)view=gorsel(&|$)
+RewriteCond %{QUERY_STRING} !(^|&)lang=
+RewriteRule ^index\.php$ index.php?lang=tr [QSA]
+
+# 2.1: env bayrakları
+#   NUMISTR_IMG = herkese açık görsel (view=gorsel; wm=2 ve deneme parametreleri hariç) -> tarayıcıda 7 gün
+#   NUMISTR     = com_numistr'nin geri kalanı (wm=2 Pro görseli, hesap, fatura, sık kullanılanlar...) -> önbelleksiz
+RewriteCond %{QUERY_STRING} (^|&)option=com_numistr(&|$)
+RewriteCond %{QUERY_STRING} (^|&)view=gorsel(&|$)
+RewriteCond %{QUERY_STRING} !(^|&)wm=2(&|$)
+RewriteCond %{QUERY_STRING} !(^|&)(debug|force|probe|allow_insecure)=
+RewriteRule ^index\.php$ - [E=NUMISTR_IMG:1,S=1]
 RewriteCond %{QUERY_STRING} (^|&)option=com_numistr(&|$)
 RewriteRule ^index\.php$ - [E=NUMISTR:1]
 </IfModule>
@@ -19,12 +36,17 @@ Header always unset Cache-Control env=NUMISTR
 Header always set   Cache-Control "private, no-store, no-cache, must-revalidate, max-age=0" env=NUMISTR
 Header always set   Pragma "no-cache" env=NUMISTR
 Header always set   X-Numistr-Gateway "htaccess" env=NUMISTR
+Header always unset Cache-Control env=NUMISTR_IMG
+Header always unset Pragma env=NUMISTR_IMG
+Header always unset Expires env=NUMISTR_IMG
+Header always set   Cache-Control "private, max-age=604800" env=NUMISTR_IMG
+Header always set   X-Numistr-Gateway "htaccess-img" env=NUMISTR_IMG
 </IfModule>
 
 # 2.3: ExpiresActive'ı bu isteklerde kapat (Apache 2.4+)
 <IfModule mod_expires.c>
 ExpiresActive On
-<If "%{ENV:NUMISTR} == 1">
+<If "%{ENV:NUMISTR} == 1 || %{ENV:NUMISTR_IMG} == 1">
     ExpiresActive Off
 </If>
 </IfModule>
@@ -37,7 +59,7 @@ DirectoryIndex index.html index.php
 # 2. Expires başlıkları (SpeedCache) - Karakterleri temizlendi.
 <IfModule mod_expires.c>
     ExpiresActive On
-    <FilesMatch \.(css|js|bmp|png|gif|jpe?g)$>
+    <FilesMatch \.(css|js|bmp|png|gif|jpe?g|webp|svg|ico|woff2?)$>
         ExpiresDefault "access plus 7 days"
     </FilesMatch>
     ExpiresByType application/javascript "access plus 7 days"
@@ -47,6 +69,11 @@ DirectoryIndex index.html index.php
     ExpiresByType image/png "access plus 7 days"
     ExpiresByType image/gif "access plus 7 days"
     ExpiresByType image/bmp "access plus 7 days"
+    ExpiresByType image/webp "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
 </IfModule>
 
 # 3. Temel Joomla ve Güvenlik Ayarları
@@ -121,11 +148,13 @@ RewriteRule .* index.php [L]
     </IfModule>
 </FilesMatch>
 
-# Numistr dynamic image endpoint - do NOT add long cache
+# Numistr: index.php yanıtları önbelleksiz; herkese açık görsel ucu (NUMISTR_IMG) tarayıcıda 7 gün (16 Kas 2026)
 <FilesMatch "^index\.php$">
     ExpiresActive Off
     Header unset Expires
-    Header set Cache-Control "private, no-store, no-cache, must-revalidate, max-age=0"
+    Header set Cache-Control "private, no-store, no-cache, must-revalidate, max-age=0" env=!NUMISTR_IMG
+    Header unset Cache-Control env=NUMISTR_IMG
+    Header unset Pragma env=NUMISTR_IMG
 </FilesMatch>
 
 # 9. cPanel PHP Ayarı
