@@ -1,0 +1,165 @@
+##
+# NUMISTR.ORG - GÜVENLİ VE GEÇİCİ YAPILANDIRMA
+# Bu dosya hatalı karakterlerden temizlenmiş ve yeniden düzenlenmiştir.
+##
+
+### === Numistr: dynamic image endpoint (no cache) ===
+
+# 2.1: Bir env bayrağı ata (sadece com_numistr istekleri için)
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{QUERY_STRING} (^|&)option=com_numistr(&|$)
+RewriteRule ^index\.php$ - [E=NUMISTR:1]
+</IfModule>
+
+# 2.2: Bu isteklerde cache başlıklarını sıfırla ve özel header ekle
+<IfModule mod_headers.c>
+Header always unset Expires env=NUMISTR
+Header always unset Cache-Control env=NUMISTR
+Header always set   Cache-Control "private, no-store, no-cache, must-revalidate, max-age=0" env=NUMISTR
+Header always set   Pragma "no-cache" env=NUMISTR
+Header always set   X-Numistr-Gateway "htaccess" env=NUMISTR
+</IfModule>
+
+# 2.3: ExpiresActive'ı bu isteklerde kapat (Apache 2.4+)
+<IfModule mod_expires.c>
+ExpiresActive On
+<If "%{ENV:NUMISTR} == 1">
+    ExpiresActive Off
+</If>
+</IfModule>
+### === /Numistr ===
+
+
+# 1. Ziyaretçilere Joomla (index.php) yerine "Çok Yakında" sayfasını (index.html) göster.
+DirectoryIndex index.html index.php
+
+# 2. Expires başlıkları (SpeedCache) - Karakterleri temizlendi.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    <FilesMatch \.(css|js|bmp|png|gif|jpe?g)$>
+        ExpiresDefault "access plus 7 days"
+    </FilesMatch>
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType text/javascript "access plus 7 days"
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType image/jpeg "access plus 7 days"
+    ExpiresByType image/png "access plus 7 days"
+    ExpiresByType image/gif "access plus 7 days"
+    ExpiresByType image/bmp "access plus 7 days"
+</IfModule>
+
+# 3. Temel Joomla ve Güvenlik Ayarları
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+# Sunucu izin vermediği için bu satır kapalı kalmalı
+#Options +FollowSymlinks
+Options -Indexes
+
+RewriteEngine On
+# 3b. C5: numistr.org -> www.numistr.org kalici yonlendirme
+RewriteCond %{HTTP_HOST} ^numistr\.org$ [NC]
+RewriteRule ^(.*)$ https://www.numistr.org/$1 [R=301,L]
+
+# 3c. 2026-10-25: TR Kilikya menu adresi duzeltildi (clicia-coins -> cilicia-coins); eski adresler kalici yonlendirilir
+RewriteRule ^tr/anatolian-coins/clicia-coins(/.*)?$ https://www.numistr.org/tr/anatolian-coins/cilicia-coins$1 [R=301,L,NE]
+
+# 4. Hotlink Koruması - Görsel hırsızlığını engelle
+
+## 5. Joomla Güvenlik Kuralları - Hata vermemesi için düzenlendi
+RewriteCond %{QUERY_STRING} base64_encode[^(]*\([^)]*\) [OR]
+RewriteCond %{QUERY_STRING} (<|%3C)([^s]*s)+cript.*(>|%3E) [NC,OR]
+RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+RewriteRule .* index.php [F,L]
+RewriteRule "\.css\.gz$" "-" [T=text/css,E=no-gzip:1,E=no-brotli:1]
+RewriteRule "\.js\.gz$" "-" [T=text/javascript,E=no-gzip:1,E=no-brotli:1]
+
+# RewriteBase /
+
+## 6. Joomla Çekirdek SEF Kuralları
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteCond %{REQUEST_URI} !^/index\.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule .* index.php [L]
+
+# 7. Sıkıştırma Ayarları (deflate) - Karakterleri temizlendi.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/vnd.ms-fontobject
+    AddOutputFilterByType DEFLATE application/x-font
+    AddOutputFilterByType DEFLATE application/x-font-opentype
+    AddOutputFilterByType DEFLATE application/x-font-otf
+    AddOutputFilterByType DEFLATE application/x-font-truetype
+    AddOutputFilterByType DEFLATE application/x-font-ttf
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE font/opentype
+    AddOutputFilterByType DEFLATE font/otf
+    AddOutputFilterByType DEFLATE font/ttf
+    AddOutputFilterByType DEFLATE image/svg+xml
+    AddOutputFilterByType DEFLATE image/x-icon
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/xml
+    BrowserMatch ^Mozilla/4 gzip-only-text/html
+    BrowserMatch ^Mozilla/4\.0[678] no-gzip
+    BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
+    Header append Vary User-Agent
+</IfModule>
+
+# 8. SVG Güvenlik Ayarı - Karakterleri temizlendi.
+<FilesMatch "\.svg$">
+    <IfModule mod_headers.c>
+        Header always set Content-Security-Policy "script-src 'none'"
+    </IfModule>
+</FilesMatch>
+
+# Numistr dynamic image endpoint - do NOT add long cache
+<FilesMatch "^index\.php$">
+    ExpiresActive Off
+    Header unset Expires
+    Header set Cache-Control "private, no-store, no-cache, must-revalidate, max-age=0"
+</FilesMatch>
+
+# 9. cPanel PHP Ayarı
+<IfModule mime_module>
+    AddHandler application/x-httpd-ea-php83 .php .php8 .phtml
+</IfModule>
+
+#RewriteRule .*\.(jpg|jpeg|png|gif|bmp)$ - [F,NC]
+
+RewriteCond %{HTTP_REFERER} !^$
+RewriteCond %{HTTP_REFERER} !^http://numistr.org/.*$      [NC]
+RewriteCond %{HTTP_REFERER} !^http://numistr.org$      [NC]
+RewriteCond %{HTTP_REFERER} !^http://www.numistr.org/.*$      [NC]
+RewriteCond %{HTTP_REFERER} !^http://www.numistr.org$      [NC]
+RewriteCond %{HTTP_REFERER} !^https://dev-ja5k8sumb7005j4n.us.auth0.com/.*$      [NC]
+RewriteCond %{HTTP_REFERER} !^https://dev-ja5k8sumb7005j4n.us.auth0.com$      [NC]
+RewriteCond %{HTTP_REFERER} !^https://manage.auth0.com/.*$      [NC]
+RewriteCond %{HTTP_REFERER} !^https://manage.auth0.com$      [NC]
+RewriteCond %{HTTP_REFERER} !^https://numistr.org/.*$      [NC]
+RewriteCond %{HTTP_REFERER} !^https://numistr.org$      [NC]
+RewriteCond %{HTTP_REFERER} !^https://www.numistr.org/.*$      [NC]
+RewriteCond %{HTTP_REFERER} !^https://www.numistr.org$      [NC]
+RewriteRule .*\.(jpg|jpeg|gif|png|bmp)$ - [F,NC]
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# Set the “ea-php83” package as the default “PHP” programming language.
+<IfModule mime_module>
+  AddHandler application/x-httpd-ea-php83 .php .php8 .phtml
+</IfModule>
+# php -- END cPanel-generated handler, do not edit
+
+<Files 403.shtml>
+order allow,deny
+allow from all
+</Files>
+
+deny from 176.233.29.237
