@@ -10,12 +10,13 @@
 <IfModule mod_rewrite.c>
 RewriteEngine On
 
-# 2.0: Görsel ucunda dil yönlendirmesini atla. Adreste lang yoksa içeride lang=tr eklenir;
-#      Joomla dil filtresi /tr/?... adresine 301 atmaz (görsel dilden bağımsız).
+# 2.0: Görsel ucunda dil yönlendirmesini atla. İçeride nolangfilter=1 eklenir: Joomla dil filtresi
+#      bu parametreyi sorgudan okur ve /tr/?... adresine 301 atmaz (görsel dilden bağımsız).
+#      (lang=tr işe yaramaz: dil filtresi SEF kipinde dili özgün adresten okur — 16 Kas canlı deneme.)
 RewriteCond %{QUERY_STRING} (^|&)option=com_numistr(&|$)
 RewriteCond %{QUERY_STRING} (^|&)view=gorsel(&|$)
-RewriteCond %{QUERY_STRING} !(^|&)lang=
-RewriteRule ^index\.php$ index.php?lang=tr [QSA]
+RewriteCond %{QUERY_STRING} !(^|&)(lang|nolangfilter)=
+RewriteRule ^index\.php$ index.php?nolangfilter=1 [QSA]
 
 # 2.1: env bayrakları
 #   NUMISTR_IMG = herkese açık görsel (view=gorsel; wm=2 ve deneme parametreleri hariç) -> tarayıcıda 7 gün
